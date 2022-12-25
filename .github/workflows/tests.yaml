@@ -1,0 +1,26 @@
+name: Tests workflow
+
+on: pull_request
+
+jobs:
+  build:
+    name: Run tests
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '16.17.0'
+
+      - uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
+      - run: npm install
+
+      - run: npm test --silent
+        env:
+          CI: true
