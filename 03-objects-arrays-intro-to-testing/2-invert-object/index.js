@@ -6,5 +6,5 @@
 export function invertObj(obj) {
   return obj
     ? Object.fromEntries(Object.entries(obj).map(([key, val]) => [val, key]))
-    : undefined;
+    : obj;
 }

@@ -5,11 +5,15 @@
  */
 
 export function createGetter(field) {
+  const splitFields = field.split(".");
+
   return (obj) => {
-    return field.split(".").reduce((current, item) => {
+    return splitFields.reduce((current, item) => {
       return current && Object.hasOwn(current, item)
         ? current[item]
-        : undefined;
+        : typeof current === "undefined"
+        ? current
+        : current[item];
     }, obj);
   };
 }
