@@ -2,15 +2,13 @@ export default class ColumnChart {
   _chartHeight = 50;
   _element = null;
 
-  constructor(
-    { data = null, label = "", value = 0, link = "", formatHeading = null } = {
-      data: null,
-      label: "",
-      value: 0,
-      link: "",
-      formatHeading: null,
-    }
-  ) {
+  constructor({
+    data = null,
+    label = "",
+    value = 0,
+    link = "",
+    formatHeading = null,
+  } = {}) {
     this._updateData(data);
     this._label = label;
     this._value = value;
@@ -21,7 +19,7 @@ export default class ColumnChart {
   }
 
   _render() {
-    let columnChartClasses = this._isDataLoaded()
+    const columnChartClasses = this._isDataLoaded()
       ? "column-chart"
       : "column-chart column-chart_loading";
 
@@ -45,13 +43,11 @@ export default class ColumnChart {
     return `<div class="column-chart__title">Total ${this._label}${linkHtml}</div>`;
   }
 
-  // formatHeading: (data) => `$${data}`, смущает преобразование,
-  // оно не получает '$243,437', как в примере, будет просто '$243437'
   _makeHeaderHTML() {
     return `<div data-element="header" class="column-chart__header">${
       this._formatHeading
-        ? this._formatHeading(this._value ?? "")
-        : this._value ?? ""
+        ? this._formatHeading(this._value || "")
+        : this._value || ""
     }</div>`;
   }
 
@@ -71,7 +67,7 @@ export default class ColumnChart {
 
   _getColumnProps(data = this._data) {
     const maxValue = Math.max(...data);
-    const scale = 50 / maxValue;
+    const scale = this._chartHeight / maxValue;
 
     return data.map((item) => {
       return {
