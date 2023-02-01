@@ -1,39 +1,66 @@
 export default class NotificationMessage {
-  static executed = false;
+  static removePrev = false;
   _element = null;
 
-  constructor(msg = "", { duration = 2000, type = "success" } = {}) {
+  constructor(msg = "", { duration = 0, type = "" } = {}) {
+    this._msg = msg;
+    this._duration = duration;
+    this._type = type;
+
     this.render();
   }
 
   get element() {
     return this._element;
   }
-  set element(e) {
-    this._element = e;
+  get duration() {
+    return this._duration;
   }
 
   render() {
-    this.element = document.createElement("div");
-    this.element.innerHTML = `
-      <div class="notification success" style="--value:20s">
+    const wrap = document.createElement("div");
+    wrap.innerHTML = this._getTemplate();
+    this._element = wrap.firstElementChild;
+  }
+
+  show(div = document.body) {
+    const protoLink = this.constructor.prototype;
+    if (protoLink.removePrev) protoLink.removePrev();
+
+    div.appendChild(this.element);
+    protoLink.removePrev = this.remove.bind(this);
+
+    setTimeout(() => {
+      this.remove();
+    }, this._duration);
+  }
+
+  remove() {
+    if (this.element) this.element.remove();
+  }
+
+  destroy() {
+    this.remove();
+    this._element = null;
+  }
+
+  _getTemplate() {
+    return `
+      <div class="notification ${
+        this._type
+      }" style="--value:${this._getSeconds()}s">
         <div class="timer"></div>
         <div class="inner-wrapper">
-          <div class="notification-header">success</div>
-          <div class="notification-body">Hello world</div>
+          <div class="notification-header">${this._type}</div>
+          <div class="notification-body">${this._msg}</div>
         </div>
       </div>
     `;
-
-    this.element = this.element.firstElementChild;
-    console.log(this.element);
   }
 
-  show() {}
-
-  remove() {}
-
-  destroy() {}
+  _getSeconds() {
+    return Math.round(this._duration / 1000);
+  }
 }
 
 // git pull upstream master
