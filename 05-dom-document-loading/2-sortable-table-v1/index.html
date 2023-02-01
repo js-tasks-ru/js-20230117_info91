@@ -1,0 +1,83 @@
+<!doctype html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div>
+  <div>
+    <select id="field">
+      <option selected value="title">title</option>
+      <option value="quantity">quantity</option>
+      <option value="price">price</option>
+      <option value="sales">sales</option>
+    </select>
+  </div>
+  <div>
+    <select id="order">
+      <option selected value="asc">asc</option>
+      <option value="desc">desc</option>
+    </select>
+  </div>
+
+  <button id="sort">Sort</button>
+</div>
+
+<div id="root"></div>
+
+<script type="module">
+  import SortableTable from './index.js';
+  import data from './products-data.js';
+
+  const headerConfig = [
+    {
+      id: 'images',
+      title: 'Image',
+      sortable: false,
+      template: (data = []) => {
+        return `
+          <div class="sortable-table__cell">
+            <img class="sortable-table-image" alt="Image" src="${data[0]?.url || 'https://via.placeholder.com/32'}">
+          </div>
+        `;
+      }
+    },
+    {
+      id: 'title',
+      title: 'Name',
+      sortable: true,
+      sortType: 'string'
+    },
+    {
+      id: 'quantity',
+      title: 'Quantity',
+      sortable: true,
+      sortType: 'number'
+    },
+    {
+      id: 'price',
+      title: 'Price',
+      sortable: true,
+      sortType: 'number'
+    },
+    {
+      id: 'sales',
+      title: 'Sales',
+      sortable: true,
+      sortType: 'number'
+    },
+  ];
+
+  const sortableTable = new SortableTable(headerConfig, data);
+
+  root.append(sortableTable.element);
+
+  sort.addEventListener('click', () => {
+    const fieldValue = field.value;
+    const orderValue = order.value;
+
+    sortableTable.sort(fieldValue, orderValue);
+  });
+</script>
+</body>
