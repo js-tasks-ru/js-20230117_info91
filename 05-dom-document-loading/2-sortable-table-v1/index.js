@@ -1,18 +1,12 @@
 export default class SortableTable {
   _element = null;
+  _subElements = [];
 
   constructor(headerConfig = [], data = []) {
     this._headerConfig = headerConfig;
     this._currentSort = { fieldValue: "", orderValue: "" };
-    this._allowSorting = new Map(
-      headerConfig
-        .filter((v) => {
-          return v.sortable;
-        })
-        .map((v) => {
-          return [v.id, v.sortType];
-        })
-    );
+
+    this._allowSorting = this._getAllowSortingFields(headerConfig);
     this._data = data;
 
     this._render();
@@ -22,8 +16,22 @@ export default class SortableTable {
     const wrap = document.createElement("div");
     wrap.innerHTML = this._getTemplate();
     this._element = wrap.firstElementChild;
-    const tmpQ = this._element.querySelectorAll("div[data-element]");
-    this._subElements = { head: tmpQ[0], body: tmpQ[1] };
+
+    for (const item of this.element.querySelectorAll("div[data-element]")) {
+      this._subElements[item.dataset.element] = item;
+    }
+  }
+
+  _getAllowSortingFields(cfg) {
+    return new Map(
+      cfg
+        .filter((v) => {
+          return v.sortable;
+        })
+        .map((v) => {
+          return [v.id, v.sortType];
+        })
+    );
   }
 
   _getTemplate() {
@@ -47,6 +55,7 @@ export default class SortableTable {
       </div>`
       : "";
   }
+
   _getHeaderInnerTemplate() {
     return this.isConfigNotEmpty()
       ? this._headerConfig
@@ -54,6 +63,7 @@ export default class SortableTable {
           .join("")
       : "";
   }
+
   _getHeaderCellTemplate(cell) {
     return `<div
     class="sortable-table__cell"
@@ -76,32 +86,28 @@ export default class SortableTable {
       ? this._data.map((item) => this._getBodyRowTemplate(item)).join("")
       : this._getPlaceholderTemplate();
   }
+
   _getBodyRowTemplate(row = {}) {
     if (this.isConfigNotEmpty() && row) {
       return `<a href="/products/${row.id}" class="sortable-table__row">
      ${this._headerConfig
-       .map(({ id }) => {
-         return this._getBodyCellTemplate(id, row[id]);
+       .map((headerColumn) => {
+         return headerColumn.template
+           ? headerColumn.template(row[headerColumn.id])
+           : `<div class="sortable-table__cell">${
+               row[headerColumn.id] || ""
+             }</div>`;
        })
        .join("")}
     </a>`;
     }
     return "";
   }
-  _getBodyCellTemplate(type = "", cell = "") {
-    if (type === "images")
-      return `  <div class="sortable-table__cell">
-        <img
-          class="sortable-table-image"
-          alt="${cell[0].source ?? ""}"
-          src="${cell[0].url ?? ""}"
-        />
-      </div>`;
-    return `<div class="sortable-table__cell">${cell ?? ""}</div>`;
-  }
+
   _getLoadingTemplate() {
     return `    <div data-element="loading" class="loading-line sortable-table__loading-line"></div>`;
   }
+
   _getPlaceholderTemplate() {
     return ` <div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
     <div>
@@ -110,8 +116,9 @@ export default class SortableTable {
     </div>
     </div>`;
   }
+
   _getSortArrowTemplate(id) {
-    return this._currentSort.orderValue && id === this._currentSort.fieldValue
+    return id === this._currentSort.fieldValue
       ? `<span data-element="arrow" class="sortable-table__sort-arrow"><span class="sort-arrow"></span></span>`
       : "";
   }
@@ -127,17 +134,20 @@ export default class SortableTable {
           case "string":
             this._sortStrings(fieldValue, orderValue);
             break;
-          default:
+          case "number":
             this._data.sort((a, b) => {
               return orderValue === "asc"
                 ? a[fieldValue] - b[fieldValue]
                 : b[fieldValue] - a[fieldValue];
             });
+          default:
+            this._data.sort();
         }
         this.updateData();
       }
     }
   }
+
   _sortStrings(fieldName, param = "asc") {
     return this._data.sort(function (a, b) {
       return param === "asc"
@@ -153,7 +163,7 @@ export default class SortableTable {
     }
     if (this.isDataLoaded()) {
       this.subElements.body.innerHTML = this._getBodyInnerTemplate();
-      this.subElements.head.innerHTML = this._getHeaderInnerTemplate();
+      this.subElements.header.innerHTML = this._getHeaderInnerTemplate();
     }
   }
 

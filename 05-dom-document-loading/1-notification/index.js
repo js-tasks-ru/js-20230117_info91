@@ -1,5 +1,5 @@
 export default class NotificationMessage {
-  static removePrev = false;
+  static linkToActiveRemoveRemove = false;
   _element = null;
 
   constructor(msg = "", { duration = 0, type = "" } = {}) {
@@ -24,11 +24,12 @@ export default class NotificationMessage {
   }
 
   show(div = document.body) {
-    const protoLink = this.constructor.prototype;
-    if (protoLink.removePrev) protoLink.removePrev();
+    if (NotificationMessage.linkToActiveRemove)
+      NotificationMessage.linkToActiveRemove();
 
-    div.appendChild(this.element);
-    protoLink.removePrev = this.remove.bind(this);
+    div.append(this.element);
+
+    NotificationMessage.linkToActiveRemove = this.remove.bind(this);
 
     setTimeout(() => {
       this.remove();
@@ -36,7 +37,9 @@ export default class NotificationMessage {
   }
 
   remove() {
-    if (this.element) this.element.remove();
+    if (this.element) {
+      this.element.remove();
+    }
   }
 
   destroy() {
