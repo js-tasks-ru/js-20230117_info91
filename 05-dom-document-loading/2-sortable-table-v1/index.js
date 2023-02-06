@@ -141,7 +141,7 @@ export default class SortableTable {
                 : b[fieldValue] - a[fieldValue];
             });
           default:
-            this._data.sort();
+            throw new Error("Parameter orderValue error.");
         }
         this.updateData();
       }

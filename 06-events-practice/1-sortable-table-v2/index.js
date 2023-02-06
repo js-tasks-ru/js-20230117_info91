@@ -73,6 +73,8 @@ export default class SortableTable {
             ? a[sortId] - b[sortId]
             : b[sortId] - a[sortId];
         };
+      default:
+        throw new Error("Sort order error.");
     }
     this.data.sort(sortFns);
     if (!noUpdate) this.updateData();
