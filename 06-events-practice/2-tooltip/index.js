@@ -1,53 +1,58 @@
 class Tooltip {
-  static element = null;
-  static MOUSE_INDENT = 5; // отступ в пикселях от указателя мыши, добавляет плавность и видимость текста
+  static instance = null;
+  element = null;
+
+  MOUSE_INDENT = 5; // отступ в пикселях от указателя мыши, добавляет плавность и видимость текста
 
   constructor() {
-    return Tooltip;
+    if (Tooltip.instance) {
+      return Tooltip.instance;
+    }
+    Tooltip.instance = this;
   }
 
-  static render(text, parent = document.body) {
-    Tooltip.element.textContent = text;
-    parent.append(Tooltip.element);
+  render(text, parent = document.body) {
+    this.element.textContent = text;
+    parent.append(this.element);
   }
 
-  static initialize() {
-    Tooltip.element = document.createElement("div");
-    Tooltip.element.className = "tooltip";
-    document.addEventListener("pointerover", Tooltip.over);
-    document.addEventListener("pointerout", Tooltip.out);
+  initialize() {
+    this.element = document.createElement("div");
+    this.element.className = "tooltip";
+    document.addEventListener("pointerover", this.mouseOver);
+    document.addEventListener("pointerout", this.mouseOut);
   }
 
-  static move = (event) => {
-    Tooltip.element.style.left = `${event.clientX + Tooltip.MOUSE_INDENT}px`;
-    Tooltip.element.style.top = `${event.clientY + Tooltip.MOUSE_INDENT}px`;
+  move = (event) => {
+    this.element.style.left = `${event.clientX + this.MOUSE_INDENT}px`;
+    this.element.style.top = `${event.clientY + this.MOUSE_INDENT}px`;
   };
 
-  static over = (event) => {
+  mouseOver = (event) => {
     const parent = event.target;
     if (parent.dataset.tooltip) {
-      Tooltip.render(parent.dataset.tooltip, parent);
-      parent.addEventListener("mousemove", Tooltip.move);
+      this.render(parent.dataset.tooltip, parent);
+      document.addEventListener("mousemove", this.move);
     }
   };
-  static out = (event) => {
+  mouseOut = (event) => {
     const parent = event.target;
     if (parent.dataset.tooltip) {
-      parent.removeEventListener("mousemove", Tooltip.move);
-      Tooltip.remove();
+      document.removeEventListener("mousemove", this.move);
+      this.remove();
     }
   };
 
-  static remove() {
-    if (Tooltip.element) {
-      Tooltip.element.remove();
+  remove() {
+    if (this.element) {
+      this.element.remove();
     }
   }
-  static destroy() {
-    Tooltip.remove();
-    document.removeEventListener("pointerover", Tooltip.over);
-    document.removeEventListener("pointerout", Tooltip.out);
-    Tooltip.element = null;
+  destroy() {
+    this.remove();
+    document.removeEventListener("pointerover", this.mouseOver);
+    document.removeEventListener("pointerout", this.mouseOut);
+    this.element = null;
   }
 }
 
