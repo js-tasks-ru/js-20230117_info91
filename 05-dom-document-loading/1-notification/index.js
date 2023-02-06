@@ -1,5 +1,5 @@
 export default class NotificationMessage {
-  static linkToActiveRemoveRemove = false;
+  static activeNotification = null;
   _element = null;
 
   constructor(msg = "", { duration = 0, type = "" } = {}) {
@@ -24,12 +24,12 @@ export default class NotificationMessage {
   }
 
   show(div = document.body) {
-    if (NotificationMessage.linkToActiveRemove)
-      NotificationMessage.linkToActiveRemove();
+    if (NotificationMessage.activeNotification)
+      NotificationMessage.activeNotification.remove();
 
     div.append(this.element);
 
-    NotificationMessage.linkToActiveRemove = this.remove.bind(this);
+    NotificationMessage.activeNotification = this;
 
     setTimeout(() => {
       this.remove();
