@@ -16,7 +16,10 @@ export default class SortableTable {
     const wrap = document.createElement("div");
     wrap.innerHTML = this._getTemplate();
     this._element = wrap.firstElementChild;
+    this.getSubElements();
+  }
 
+  getSubElements() {
     for (const item of this.element.querySelectorAll("div[data-element]")) {
       this._subElements[item.dataset.element] = item;
     }
