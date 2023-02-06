@@ -73,6 +73,7 @@ export default class SortableTable {
             ? a[sortId] - b[sortId]
             : b[sortId] - a[sortId];
         };
+        break;
       default:
         throw new Error("Sort order error.");
     }
