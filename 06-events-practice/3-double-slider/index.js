@@ -2,32 +2,39 @@ export default class DoubleSlider {
   element = null;
   subElements = {};
   clickTarget = {};
-  values = [];
+  values = {};
   static MAX_PERCENT = 100;
   static MIN_PERCENT = 0;
 
   constructor({
-    minVal = 0,
-    maxVal = 100,
-    step = 2,
-    left = 10,
-    right = 90,
-    valueTemplate = (data) => `$${data}`,
+    min = 0,
+    max = 100,
+    formatValue = (data) => `$${data}`,
+    selected = {
+      from: min,
+      to: max,
+    },
+    step = 0,
   } = {}) {
-    this._left = left;
-    this._right = right;
-    this.minVal = minVal;
-    this.maxVal = maxVal;
+    this.values = selected;
+    this.selected = selected;
+    this.min = min;
+    this.max = max;
     this.step = step > 0 ? step : 0;
-    this.valueTemplate = valueTemplate;
+    this.formatValue = formatValue;
 
     this.render();
     this.init();
   }
 
   render() {
-    this.range = this.maxVal - this.minVal;
-    this.updateValues();
+    this.range = this.max - this.min;
+    this._left = Number(
+      ((this.values.from / (this.max + this.min)) * 100).toFixed(this.step)
+    );
+    this._right = Number(
+      ((this.values.to / (this.max + this.min)) * 100).toFixed(this.step)
+    );
 
     const wrap = document.createElement("div");
     wrap.innerHTML = this.getTemplate();
@@ -50,7 +57,7 @@ export default class DoubleSlider {
 
   getTemplate() {
     return `  <div class="range-slider">
-    <span>${this.valueTemplate(this.values[0])}</span>
+    <span data-element="from">${this.formatValue(this.values.from)}</span>
     <div class="range-slider__inner">
       <span class="range-slider__progress"style="left: ${this.left}%; right:${
       DoubleSlider.MAX_PERCENT - this.right
@@ -60,7 +67,7 @@ export default class DoubleSlider {
         DoubleSlider.MAX_PERCENT - this.right
       }%"></span>
         </div>
-      <span>${this.valueTemplate(this.values[1])}</span>
+      <span data-element="to">${this.formatValue(this.values.to)}</span>
     </div>`;
   }
 
@@ -74,15 +81,19 @@ export default class DoubleSlider {
   };
 
   pixelToPersent(pixel) {
-    return Number((pixel / this.mousePersentStep).toFixed(this.step));
+    return Number(pixel / this.mousePersentStep).toFixed(this.step);
   }
 
   pointerDown = (event) => {
     this.baseCoords = this.subElements.inner.getBoundingClientRect();
-    this.mousePersentStep = this.baseCoords.width / 100;
+    if (!this.baseCoords.x) {
+      this.baseCoords.x = this.baseCoords.top;
+    }
+
+    this.mousePersentStep = this.baseCoords.width / DoubleSlider.MAX_PERCENT;
     this.clickTarget = event.target.closest("span");
 
-    document.addEventListener("mousemove", this.move);
+    document.addEventListener("pointermove", this.move);
   };
 
   init() {
@@ -103,13 +114,13 @@ export default class DoubleSlider {
     this.subElements.progress.style.right = `${
       DoubleSlider.MAX_PERCENT - this.right
     }%`;
-    this.values.forEach((val, index) => {
-      this.subElements[index].textContent = this.valueTemplate(val);
-    });
+
+    this.subElements[0].textContent = this.formatValue(this.values.from);
+    this.subElements[1].textContent = this.formatValue(this.values.to);
   }
 
   updateValues() {
-    this.values = [this.getFromValue(), this.getToValue()];
+    this.values = { from: this.getFromValue(), to: this.getToValue() };
   }
 
   updateAll() {
@@ -119,14 +130,18 @@ export default class DoubleSlider {
   }
 
   getFromValue() {
-    return parseFloat(
-      (this.minVal + (this.range * this.left) / 100).toFixed(this.step)
+    return Number(
+      (this.min + (this.range * this.left) / DoubleSlider.MAX_PERCENT).toFixed(
+        this.step
+      )
     );
   }
 
   getToValue() {
-    return parseFloat(
-      (this.minVal + (this.range * this.right) / 100).toFixed(this.step)
+    return Number(
+      (this.min + (this.range * this.right) / DoubleSlider.MAX_PERCENT).toFixed(
+        this.step
+      )
     );
   }
 
@@ -141,7 +156,7 @@ export default class DoubleSlider {
     if (val <= DoubleSlider.MIN_PERCENT) {
       this._left = DoubleSlider.MIN_PERCENT;
     } else if (val >= this.right) {
-      this._left = this.right - 10 ** -this.step;
+      this._left = this.right;
     } else {
       this._left = val;
     }
@@ -155,7 +170,7 @@ export default class DoubleSlider {
     if (val >= DoubleSlider.MAX_PERCENT) {
       this._right = DoubleSlider.MAX_PERCENT;
     } else if (val <= this.left) {
-      this._right = this.left + 10 ** -this.step;
+      this._right = this.left;
     } else {
       this._right = val;
     }
