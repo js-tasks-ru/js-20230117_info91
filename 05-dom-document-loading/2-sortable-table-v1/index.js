@@ -23,7 +23,7 @@ export default class SortableTable {
   }
 
   _getAllowSortingFields(cfg) {
-    return new Map(
+    return Object.fromEntries(
       cfg
         .filter((v) => {
           return v.sortable;
@@ -129,8 +129,8 @@ export default class SortableTable {
       this._currentSort.orderValue !== orderValue
     ) {
       this._currentSort = { fieldValue: fieldValue, orderValue: orderValue };
-      if (this._allowSorting.has(fieldValue)) {
-        switch (this._allowSorting.get(fieldValue)) {
+      if (this._allowSorting[fieldValue]) {
+        switch (this._allowSorting[fieldValue]) {
           case "string":
             this._sortStrings(fieldValue, orderValue);
             break;
@@ -140,6 +140,7 @@ export default class SortableTable {
                 ? a[fieldValue] - b[fieldValue]
                 : b[fieldValue] - a[fieldValue];
             });
+            break;
           default:
             throw new Error("Parameter orderValue error.");
         }
