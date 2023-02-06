@@ -11,12 +11,12 @@ export default class SortableTable {
   }
 
   render() {
-    this.sortOnClient(true);
-
     const wrap = document.createElement("div");
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
     this.getSubElements();
+
+    this.sortOnClient(true);
     this.addSortEvent();
   }
 
@@ -29,10 +29,8 @@ export default class SortableTable {
   addSortEvent() {
     this.subElements.header.addEventListener("pointerdown", (event) => {
       const target = event.target.closest("div");
-      if (
-        this.headerConfig.filter((item) => item.id === target.dataset.id)[0]
-          .sortable
-      ) {
+
+      if (target.dataset.sortable) {
         this.sorted = {
           id: target.dataset.id,
           order: this.sorted.order === "asc" ? "desc" : "asc",
@@ -50,20 +48,20 @@ export default class SortableTable {
     }
   }
 
-  sortOnClient(noUpdate = false) {
+  sortOnClient() {
     let sortFns;
     const sortOrder = this.sorted.order;
     const sortId = this.sorted.id;
 
-    switch (
-      this.headerConfig.filter((item) => item.id === sortId)[0].sortType
-    ) {
+    let switchSortType = this.headerConfig.filter(
+      (item) => item.id === sortId
+    )[0].sortType;
+
+    switch (switchSortType) {
       case "string":
         sortFns = (a, b) => {
           return sortOrder === "asc"
-            ? a[sortId]
-                .toUpperCase()
-                .localeCompare(b[sortId].toUpperCase(), ["ru", "en"])
+            ? a[sortId].localeCompare(b[sortId].toUpperCase(), ["ru", "en"])
             : b[sortId]
                 .toUpperCase()
                 .localeCompare(a[sortId].toUpperCase(), ["ru", "en"]);
@@ -80,18 +78,17 @@ export default class SortableTable {
         throw new Error("Sort order error.");
     }
     this.data.sort(sortFns);
-    if (!noUpdate) this.updateData();
+
+    this.updateData();
   }
 
   getTemplate() {
-    return `
-      <div data-element="productsContainer" class="products-list__container">
+    return `<div data-element="productsContainer" class="products-list__container">
         <div class="sortable-table">
           ${this.getHeaderTemplate()}
           ${this.getBodyTemplate()}
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
   getHeaderTemplate() {
@@ -157,11 +154,11 @@ export default class SortableTable {
   }
 
   getLoadingTemplate() {
-    return `    <div data-element="loading" class="loading-line sortable-table__loading-line"></div>`;
+    return `<div data-element="loading" class="loading-line sortable-table__loading-line"></div>`;
   }
 
   getPlaceholderTemplate() {
-    return ` <div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
+    return `<div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
     <div>
       <p>No products satisfies your filter criteria</p>
       <button type="button" class="button-primary-outline">Reset all filters</button>
@@ -175,11 +172,7 @@ export default class SortableTable {
       : "";
   }
 
-  updateData(newData = this.data) {
-    if (newData !== this.data) {
-      this.data = newData;
-      this.render();
-    }
+  updateData() {
     if (this.isDataLoaded()) {
       this.subElements.body.innerHTML = this.getBodyInnerTemplate();
       this.subElements.header.innerHTML = this.getHeaderInnerTemplate();
