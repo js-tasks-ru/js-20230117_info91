@@ -7,19 +7,19 @@ export default class DoubleSlider {
   static MIN_PERCENT = 0;
 
   constructor({
-    minVal = 1,
-    maxVal = 101,
-    step = 1,
+    minVal = 0,
+    maxVal = 100,
+    step = 2,
     left = 10,
     right = 90,
-    currencyTemptate = (data) => `$${data}`,
+    valueTemplate = (data) => `$${data}`,
   } = {}) {
     this._left = left;
     this._right = right;
     this.minVal = minVal;
     this.maxVal = maxVal;
     this.step = step > 0 ? step : 0;
-    this.currencyTemptate = currencyTemptate;
+    this.valueTemplate = valueTemplate;
 
     this.render();
     this.init();
@@ -32,6 +32,7 @@ export default class DoubleSlider {
     const wrap = document.createElement("div");
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
+
     for (const item of this.element.querySelectorAll(
       '[class^="range-slider"]'
     )) {
@@ -47,6 +48,22 @@ export default class DoubleSlider {
     }
   }
 
+  getTemplate() {
+    return `  <div class="range-slider">
+    <span>${this.valueTemplate(this.values[0])}</span>
+    <div class="range-slider__inner">
+      <span class="range-slider__progress"style="left: ${this.left}%; right:${
+      DoubleSlider.MAX_PERCENT - this.right
+    }%"></span>
+      <span class="range-slider__thumb-left" style="left: ${this.left}%"></span>
+      <span class="range-slider__thumb-right" style="right:${
+        DoubleSlider.MAX_PERCENT - this.right
+      }%"></span>
+        </div>
+      <span>${this.valueTemplate(this.values[1])}</span>
+    </div>`;
+  }
+
   move = (event) => {
     if (this.clickTarget === this.subElements.right) {
       this.right = this.pixelToPersent(event.clientX - this.baseCoords.x);
@@ -54,18 +71,6 @@ export default class DoubleSlider {
     if (this.clickTarget === this.subElements.left) {
       this.left = this.pixelToPersent(event.clientX - this.baseCoords.x);
     }
-
-    // console.log(
-    //   "move",
-    //   event.clientX,
-    //   this.baseCoords.x,
-    //   event.clientX - this.baseCoords.x,
-    //   this.pixelToPersent(event.clientX - this.baseCoords.x),
-    //   this.left,
-    //   this.right
-    // );
-
-    this.update();
   };
 
   pixelToPersent(pixel) {
@@ -89,9 +94,7 @@ export default class DoubleSlider {
     });
   }
 
-  update() {
-    this.updateValues();
-
+  updateVisual() {
     this.subElements.left.style.left = this.left + "%";
     this.subElements.right.style.right = `${
       DoubleSlider.MAX_PERCENT - this.right
@@ -100,20 +103,27 @@ export default class DoubleSlider {
     this.subElements.progress.style.right = `${
       DoubleSlider.MAX_PERCENT - this.right
     }%`;
-
     this.values.forEach((val, index) => {
-      this.subElements[index].textContent = this.currencyTemptate(val);
+      this.subElements[index].textContent = this.valueTemplate(val);
     });
   }
 
   updateValues() {
     this.values = [this.getFromValue(), this.getToValue()];
   }
+
+  updateAll() {
+    this.updateValues();
+    this.updateVisual();
+    this.dispatchValues();
+  }
+
   getFromValue() {
     return parseFloat(
       (this.minVal + (this.range * this.left) / 100).toFixed(this.step)
     );
   }
+
   getToValue() {
     return parseFloat(
       (this.minVal + (this.range * this.right) / 100).toFixed(this.step)
@@ -127,22 +137,37 @@ export default class DoubleSlider {
     return this._right;
   }
   set left(val) {
-    if (val < DoubleSlider.MIN_PERCENT) {
+    const oldLeft = this.left;
+    if (val <= DoubleSlider.MIN_PERCENT) {
       this._left = DoubleSlider.MIN_PERCENT;
     } else if (val >= this.right) {
       this._left = this.right - 10 ** -this.step;
     } else {
       this._left = val;
     }
+    if (oldLeft !== this.left) {
+      this.updateAll();
+    }
   }
+
   set right(val) {
-    if (val > DoubleSlider.MAX_PERCENT) {
+    const oldRight = this.right;
+    if (val >= DoubleSlider.MAX_PERCENT) {
       this._right = DoubleSlider.MAX_PERCENT;
     } else if (val <= this.left) {
       this._right = this.left + 10 ** -this.step;
     } else {
       this._right = val;
     }
+    if (oldRight !== this.right) {
+      this.updateAll();
+    }
+  }
+
+  dispatchValues() {
+    this.element.dispatchEvent(
+      new CustomEvent("range-select", { detail: this.values, bubbles: true })
+    );
   }
 
   remove() {
@@ -154,20 +179,8 @@ export default class DoubleSlider {
   destroy() {
     this.remove();
     this.element = null;
-  }
-  getTemplate() {
-    return `  <div class="range-slider">
-    <span>${this.currencyTemptate(this.values[0])}</span>
-    <div class="range-slider__inner">
-      <span class="range-slider__progress"style="left: ${this.left}%; right:${
-      DoubleSlider.MAX_PERCENT - this.right
-    }%"></span>
-      <span class="range-slider__thumb-left" style="left: ${this.left}%"></span>
-      <span class="range-slider__thumb-right" style="right:${
-        DoubleSlider.MAX_PERCENT - this.right
-      }%"></span>
-    </div>
-    <span>${this.currencyTemptate(this.values[1])}</span>
-  </div>`;
+    this.subElements = {};
+    this.clickTarget = {};
+    this.values = {};
   }
 }
