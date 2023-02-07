@@ -35,12 +35,9 @@ class Tooltip {
       document.addEventListener("mousemove", this.move);
     }
   };
-  mouseOut = (event) => {
-    const parent = event.target;
-    if (parent.dataset.tooltip) {
-      document.removeEventListener("mousemove", this.move);
-      this.remove();
-    }
+  mouseOut = () => {
+    document.removeEventListener("mousemove", this.move);
+    this.remove();
   };
 
   remove() {
@@ -52,6 +49,7 @@ class Tooltip {
     this.remove();
     document.removeEventListener("pointerover", this.mouseOver);
     document.removeEventListener("pointerout", this.mouseOut);
+    document.removeEventListener("mousemove", this.move);
     this.element = null;
   }
 }
