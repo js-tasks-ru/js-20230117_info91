@@ -5,10 +5,12 @@ const BACKEND_URL = "https://course-js.javascript.ru";
 export default class SortableTable {
   element = null;
   subElements = [];
+
   LOAD_COUNT = 30;
   SCROLL_START_LOAD_SHIFT = 100;
   isScrolled = false;
   isLoading = false;
+  controller = new AbortController();
 
   constructor(
     headerConfig = [],
@@ -60,37 +62,45 @@ export default class SortableTable {
       desc: "asc",
       undefined: "asc",
     };
-    this.subElements.header.addEventListener("pointerdown", (event) => {
-      const target = event.target.closest("[data-sortable=true]");
+    this.subElements.header.addEventListener(
+      "pointerdown",
+      (event) => {
+        const target = event.target.closest("[data-sortable=true]");
 
-      this.isScrolled = false;
-      if (!this.isSortLocally) {
-        this.data = [];
-      }
+        this.isScrolled = false;
+        if (!this.isSortLocally) {
+          this.data = [];
+        }
 
-      if (target) {
-        this.sorted = {
-          id: target.dataset.id,
-          order: orderSwitch[this.sorted.order],
-        };
-        this.sort();
-      }
-    });
+        if (target) {
+          this.sorted = {
+            id: target.dataset.id,
+            order: orderSwitch[this.sorted.order],
+          };
+          this.sort();
+        }
+      },
+      { signal: this.controller.signal }
+    );
   }
 
   addScrollEvent() {
-    window.addEventListener("scroll", async () => {
-      const bottom = document.documentElement.getBoundingClientRect().bottom;
+    window.addEventListener(
+      "scroll",
+      async () => {
+        const bottom = document.documentElement.getBoundingClientRect().bottom;
 
-      if (
-        !this.isLoading &&
-        bottom - window.innerHeight < this.SCROLL_START_LOAD_SHIFT
-      ) {
-        this.isScrolled = true;
-        this.isLoading = true;
-        await this.loadData();
-      }
-    });
+        if (
+          !this.isLoading &&
+          bottom - window.innerHeight < this.SCROLL_START_LOAD_SHIFT
+        ) {
+          this.isScrolled = true;
+          this.isLoading = true;
+          await this.loadData();
+        }
+      },
+      { signal: this.controller.signal }
+    );
   }
 
   sort(id = this.sorted.id, order = this.sorted.order) {
@@ -304,6 +314,7 @@ export default class SortableTable {
   }
 
   destroy() {
+    this.controller.abort();
     this.remove();
     this.element = null;
   }
