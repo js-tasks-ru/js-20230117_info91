@@ -6,7 +6,9 @@ export default class SortableTable {
   element = null;
   subElements = [];
   LOAD_COUNT = 30;
-  isScroled = false;
+  SCROLL_START_LOAD_SHIFT = 100;
+  isScrolled = false;
+  isLoading = false;
 
   constructor(
     headerConfig = [],
@@ -38,13 +40,18 @@ export default class SortableTable {
 
     this.isSortLocally ? this.updateData() : await this.loadData();
 
-    this.addSortEvent();
+    this.addEvents();
   }
 
   getSubElements() {
     for (const item of this.element.querySelectorAll("div[data-element]")) {
       this.subElements[item.dataset.element] = item;
     }
+  }
+
+  addEvents() {
+    this.addSortEvent();
+    this.addScrollEvent();
   }
 
   addSortEvent() {
@@ -56,12 +63,32 @@ export default class SortableTable {
     this.subElements.header.addEventListener("pointerdown", (event) => {
       const target = event.target.closest("[data-sortable=true]");
 
+      this.isScrolled = false;
+      if (!this.isSortLocally) {
+        this.data = [];
+      }
+
       if (target) {
         this.sorted = {
           id: target.dataset.id,
           order: orderSwitch[this.sorted.order],
         };
         this.sort();
+      }
+    });
+  }
+
+  addScrollEvent() {
+    window.addEventListener("scroll", async () => {
+      const bottom = document.documentElement.getBoundingClientRect().bottom;
+
+      if (
+        !this.isLoading &&
+        bottom - window.innerHeight < this.SCROLL_START_LOAD_SHIFT
+      ) {
+        this.isScrolled = true;
+        this.isLoading = true;
+        await this.loadData();
       }
     });
   }
@@ -86,14 +113,12 @@ export default class SortableTable {
     for (const [k, v] of Object.entries(params)) {
       query.push(`${k}=${v}&`);
     }
-    // console.log("loadData", query.join(""));
+
     const data = await fetchJson(query.join(""));
     if (data) {
-      if (!this.isScroled) this.data = [];
+      if (!this.isScrolled) this.data = [];
 
       this.data.push(...data);
-
-      // console.log(data);
 
       this.updateData();
     }
@@ -263,12 +288,12 @@ export default class SortableTable {
   }
 
   showLoading() {
-    // console.log("showLoading");
-    this.subElements.loading.style.display = "block !important";
+    this.isLoading = true;
+    this.subElements.loading.style.display = "";
   }
 
   hideLoading() {
-    // console.log("hideLoading");
+    this.isLoading = false;
     this.subElements.loading.style.display = "none";
   }
 
