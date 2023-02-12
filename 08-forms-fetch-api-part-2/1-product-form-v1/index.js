@@ -28,6 +28,16 @@ export default class ProductForm {
     return this.element;
   }
 
+  async save() {
+    // TODO: realization of prod saving/creating
+    this.element.dispatchEvent(
+      new CustomEvent("product-updated", {
+        detail: { status: "ok" },
+        bubbles: true,
+      })
+    );
+  }
+
   getSubElements() {
     for (const item of this.element.querySelectorAll("[data-element]")) {
       this.subElements[item.dataset.element] = item;
