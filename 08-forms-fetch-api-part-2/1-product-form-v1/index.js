@@ -29,6 +29,7 @@ export default class ProductForm {
   }
 
   async save() {
+    //
     // TODO: realization of prod saving/creating
     this.element.dispatchEvent(
       new CustomEvent("product-updated", {

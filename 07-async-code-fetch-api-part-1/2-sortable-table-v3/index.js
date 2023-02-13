@@ -12,11 +12,17 @@ export default class SortableTable {
   isLoading = false;
   controller = new AbortController();
 
+  orderSwitch = {
+    asc: "desc",
+    desc: "asc",
+    undefined: "asc",
+  };
+
   constructor(
     headerConfig = [],
     {
       url = "",
-      isSortLocally = url ? false : true,
+      isSortLocally = !Boolean(url),
       data = [],
       sorted = {
         id: headerConfig.find((item) => item.sortable).id,
@@ -40,9 +46,11 @@ export default class SortableTable {
 
     this.getSubElements();
     this.addEvents();
-
-    // eslint-disable-next-line no-unused-expressions
-    this.isSortLocally ? this.updateData() : this.loadData();
+    if (this.isSortLocally) {
+      this.updateData();
+    } else {
+      this.loadData();
+    }
   }
 
   getSubElements() {
@@ -56,55 +64,50 @@ export default class SortableTable {
     this.addScrollEvent();
   }
 
+  sortCallback = (event) => {
+    const target = event.target.closest("[data-sortable=true]");
+
+    this.isScrolled = false;
+    if (!this.isSortLocally) {
+      this.data = [];
+    }
+
+    if (target) {
+      this.sorted = {
+        id: target.dataset.id,
+        order: this.orderSwitch[this.sorted.order],
+      };
+      this.sort();
+    }
+  };
+
   addSortEvent() {
-    const orderSwitch = {
-      asc: "desc",
-      desc: "asc",
-      undefined: "asc",
-    };
-    this.subElements.header.addEventListener(
-      "pointerdown",
-      (event) => {
-        const target = event.target.closest("[data-sortable=true]");
-
-        this.isScrolled = false;
-        if (!this.isSortLocally) {
-          this.data = [];
-        }
-
-        if (target) {
-          this.sorted = {
-            id: target.dataset.id,
-            order: orderSwitch[this.sorted.order],
-          };
-          this.sort();
-        }
-      },
-      { signal: this.controller.signal }
-    );
+    this.subElements.header.addEventListener("pointerdown", this.sortCallback, {
+      signal: this.controller.signal,
+    });
   }
 
-  addScrollEvent() {
-    window.addEventListener(
-      "scroll",
-      async () => {
-        const bottom = document.documentElement.getBoundingClientRect().bottom;
+  scrollCallback = async () => {
+    const { bottom } = document.documentElement.getBoundingClientRect();
+    if (
+      !this.isLoading &&
+      !this.isSortLocally &&
+      bottom - window.innerHeight < this.SCROLL_START_LOAD_SHIFT
+    ) {
+      this.isScrolled = true;
+      this.isLoading = true;
+      await this.loadData();
+    }
+  };
 
-        if (
-          !this.isLoading &&
-          !this.isSortLocally &&
-          bottom - window.innerHeight < this.SCROLL_START_LOAD_SHIFT
-        ) {
-          this.isScrolled = true;
-          this.isLoading = true;
-          await this.loadData();
-        }
-      },
-      { signal: this.controller.signal }
-    );
+  addScrollEvent() {
+    window.addEventListener("scroll", this.scrollCallback, {
+      signal: this.controller.signal,
+    });
   }
 
   sort(id = this.sorted.id, order = this.sorted.order) {
+    console.log("sort");
     if (this.isSortLocally) {
       this.sortOnClient(id, order);
     } else {
@@ -122,7 +125,7 @@ export default class SortableTable {
     query.searchParams.set("_start", this.data.length);
     query.searchParams.set("_end", Number(this.data.length + this.LOAD_COUNT));
 
-    let data = null;
+    let data = [];
     try {
       data = await fetchJson(query);
       if (data) {
@@ -134,10 +137,8 @@ export default class SortableTable {
         return data;
       }
     } catch (error) {
-      throw "Error of data loading." + error;
+      throw `Error of data loading. ${error.message}`;
     }
-
-    return;
   }
 
   async sortOnServer(id = this.sorted.id, order = this.sorted.order) {
