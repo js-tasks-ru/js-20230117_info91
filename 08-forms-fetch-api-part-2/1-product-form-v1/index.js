@@ -5,13 +5,26 @@ const IMGUR_CLIENT_ID = "28aaa2e823b03b1";
 const BACKEND_URL = "https://course-js.javascript.ru";
 
 export default class ProductForm {
-  element = null;
-  controller = new AbortController();
-  product = null;
-  categories = null;
-  subElements = {};
   CAT_API_URL = "api/rest/categories";
   PRODUCT_API_URL = "api/rest/products";
+  DEFAULT_FORM_DATA = {
+    title: "",
+    description: "",
+    quantity: 1,
+    subcategory: "",
+    status: 1,
+    price: 100,
+    discount: 0,
+  };
+
+  element = null;
+  subElements = {};
+  controller = new AbortController();
+
+  product = {};
+  categories = [];
+  // imageList = [];
+
   constructor(productId) {
     this.productId = productId;
   }
@@ -24,6 +37,8 @@ export default class ProductForm {
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
     this.getSubElements();
+    this.initListeners();
+    console.log(this.product);
 
     return this.element;
   }
@@ -50,20 +65,24 @@ export default class ProductForm {
     promises.push(this.loadCategories());
     if (this.productId) {
       promises.push(this.loadProduct());
+    } else {
+      // eslint-disable-next-line new-cap
+      promises.push(Promise.resolve([this.DEFAULT_FORM_DATA]));
     }
 
     try {
-      const data = await Promise.all(promises);
-      if (data[0] && data[0].length > 0) {
-        this.categories = data[0];
+      const [categories, productArr] = await Promise.all(promises);
+
+      if (categories && categories.length > 0) {
+        this.categories = categories;
       }
-      if (data[1] && data[1][0]) {
-        this.product = data[1][0];
+      if (productArr && productArr[0]) {
+        this.product = productArr[0];
       }
       // console.dir(this.categories);
       // console.dir(this.product);
     } catch (e) {
-      console.error("Error of data loading. " + e);
+      console.error(`Error of data loading. ${e}`);
     }
   }
 
@@ -83,13 +102,89 @@ export default class ProductForm {
     }
   }
 
-  //  TEMPLATES
+  // ********************************************************
+  //                          EVENTS
+  initListeners() {
+    this.subElements.productForm.uploadImage.addEventListener(
+      "click",
+      this.uploadImageBtnClick,
+      {
+        signal: this.controller.signal,
+      }
+    );
+
+    this.subElements.productForm.addEventListener(
+      "submit",
+      this.saveFormSubmit,
+      {
+        signal: this.controller.signal,
+      }
+    );
+  }
+
+  uploadImage = async (e) => {
+    const formData = new FormData();
+    const { target } = e;
+    const [file] = target.files;
+
+    if (file) {
+      this.subElements.productForm.uploadImage.disabled = true;
+      formData.append("image", file);
+
+      try {
+        const response = await fetch("https://api.imgur.com/3/image", {
+          method: "POST",
+          headers: {
+            Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
+          },
+          body: formData,
+          referrer: "",
+        });
+
+        const image = await response.json();
+
+        if (image.success) {
+          console.log(image);
+          this.product.images.push({
+            url: image.data.link,
+            source: image.data.link.split("/").at(-1),
+          });
+          this.subElements.imageListContainer.innerHTML = this.renderImages();
+        }
+      } catch (e) {
+        console.error(`uploadImage fetch error: ${e}`);
+      } finally {
+        this.subElements.productForm.uploadImage.disabled = false;
+      }
+    }
+  };
+
+  uploadImageBtnClick = () => {
+    // block BTN + loading state
+    const input = document.createElement("input");
+    input.type = "file";
+    input.hidden = true;
+    document.body.append(input);
+    input.addEventListener("change", this.uploadImage, { bubbles: false });
+    input.click();
+    input.remove();
+  };
+
+  saveFormSubmit = (event) => {
+    event.preventDefault();
+    this.save();
+  };
+  //                          /EVENTS
+  // ********************************************************
+
+  // ********************************************************
+  //                          TEMPLATES
   getTemplate() {
     return `<div class="product-form">
         <form data-element="productForm" class="form-grid">
         ${this.getTitleTemplate()}
         ${this.getDescriptionTemplate()}
-        ${this.getPhotosTemplate()}
+        ${this.getImagesTemplate()}
         ${this.getCategoriesTemplate()}
         ${this.getPropertiesTemplate()}
         ${this.getButtonsTemplate()}
@@ -126,29 +221,32 @@ export default class ProductForm {
         >${this.product ? escapeHtml(this.product.description) : ""}</textarea>
       </div>`;
   }
-  getPhotosTemplate() {
+  getImagesTemplate() {
     return `<div
         class="form-group form-group__wide"
         data-element="sortable-list-container"
       >
         <label class="form-label">Фото</label>
         <div data-element="imageListContainer">
-          <ul class="sortable-list">
-            ${
-              this.product
-                ? this.product.images
-                    .map((photo) => {
-                      return this.getPhotoTemplate(photo);
-                    })
-                    .join("")
-                : ""
-            }
-          </ul>
+          ${this.renderImages()}
         </div>
-        <button type="button" name="uploadImage" class="button-primary-outline">
+        <button type="button" name="uploadImage" id="uploadImage" class="button-primary-outline">
           <span>Загрузить</span>
         </button>
       </div>`;
+  }
+  renderImages() {
+    return `<ul class="sortable-list">
+    ${
+      this.product?.images
+        ? this.product.images
+            .map((photo) => {
+              return this.getPhotoTemplate(photo);
+            })
+            .join("")
+        : ""
+    }
+    </ul>`;
   }
   getPhotoTemplate(photo) {
     return `<li class="products-edit__imagelist-item sortable-list__item" style="">
@@ -251,12 +349,13 @@ export default class ProductForm {
   }
   getButtonsTemplate() {
     return `<div class="form-buttons">
-    <button type="submit" name="save" class="button-primary-outline">
-      Сохранить товар
+    <button type="submit" name="save" id="save" class="button-primary-outline">
+      ${this.productId ? "Сохранить" : "Добавить"} товар
     </button>
   </div>`;
   }
-  //  /TEMPLATES
+  //                        /TEMPLATES
+  // ********************************************************
 
   remove() {
     // eslint-disable-next-line curly
