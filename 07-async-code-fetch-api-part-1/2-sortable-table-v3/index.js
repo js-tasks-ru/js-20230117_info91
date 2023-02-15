@@ -39,7 +39,7 @@ export default class SortableTable {
     this.render();
   }
 
-  render() {
+  async render() {
     const wrap = document.createElement("div");
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
@@ -49,7 +49,7 @@ export default class SortableTable {
     if (this.isSortLocally) {
       this.updateData();
     } else {
-      this.loadData();
+      await this.loadData();
     }
   }
 
@@ -107,7 +107,6 @@ export default class SortableTable {
   }
 
   sort(id = this.sorted.id, order = this.sorted.order) {
-    console.log("sort");
     if (this.isSortLocally) {
       this.sortOnClient(id, order);
     } else {
