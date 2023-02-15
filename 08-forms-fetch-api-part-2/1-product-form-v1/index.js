@@ -23,10 +23,10 @@ export default class ProductForm {
 
   product = {};
   categories = [];
-  // imageList = [];
 
   constructor(productId) {
-    this.productId = productId;
+    // this.productId = productId;
+    this.productId = "22-56-sm-televizor-led-econ-ex-22ft005b-cernyj";
   }
 
   async render() {
@@ -76,7 +76,7 @@ export default class ProductForm {
       if (categories && categories.length > 0) {
         this.categories = categories;
       }
-      if (productArr && productArr[0]) {
+      if (productArr && productArr.length > 0) {
         this.product = productArr[0];
       }
       // console.dir(this.categories);
@@ -120,7 +120,26 @@ export default class ProductForm {
         signal: this.controller.signal,
       }
     );
+    this.subElements.imageListContainer.addEventListener(
+      "pointerdown",
+      this.imageListContainerClick,
+      {
+        signal: this.controller.signal,
+      }
+    );
   }
+
+  imageListContainerClick = (e) => {
+    e.preventDefault();
+    const { target } = e;
+
+    if (target.dataset.deleteHandle) {
+      this.product.images = this.product.images.filter(
+        (image) => image.source !== target.dataset.deleteHandle
+      );
+      this.subElements.imageListContainer.innerHTML = this.renderImages();
+    }
+  };
 
   uploadImage = async (e) => {
     const formData = new FormData();
@@ -129,6 +148,7 @@ export default class ProductForm {
 
     if (file) {
       this.subElements.productForm.uploadImage.disabled = true;
+      this.subElements.productForm.uploadImage.classList.add("is-loading");
       formData.append("image", file);
 
       try {
@@ -154,13 +174,13 @@ export default class ProductForm {
       } catch (e) {
         console.error(`uploadImage fetch error: ${e}`);
       } finally {
+        this.subElements.productForm.uploadImage.classList.remove("is-loading");
         this.subElements.productForm.uploadImage.disabled = false;
       }
     }
   };
 
   uploadImageBtnClick = () => {
-    // block BTN + loading state
     const input = document.createElement("input");
     input.type = "file";
     input.hidden = true;
@@ -261,7 +281,9 @@ export default class ProductForm {
           value="${photo.source || ""}"
         />
         <span>
-          <img src="icon-grab.svg" data-grab-handle="" alt="grab" />
+          <img src="icon-grab.svg" data-grab-handle="${
+            photo.source || ""
+          }" alt="grab" />
           <img
             class="sortable-table__cell-img"
             alt="Image"
@@ -270,7 +292,9 @@ export default class ProductForm {
           <span>${photo.source || ""}</span>
         </span>
         <button type="button">
-          <img src="icon-trash.svg" data-delete-handle="" alt="delete" />
+          <img src="icon-trash.svg" data-delete-handle="${
+            photo.source || ""
+          }" alt="delete" />
         </button>
       </li>`;
   }
