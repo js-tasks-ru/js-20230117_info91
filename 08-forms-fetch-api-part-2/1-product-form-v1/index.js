@@ -12,6 +12,7 @@ export default class ProductForm {
     description: "",
     quantity: 1,
     subcategory: "",
+    images: [],
     status: 1,
     price: 100,
     discount: 0,
@@ -19,14 +20,15 @@ export default class ProductForm {
 
   element = null;
   subElements = {};
+  formControls = {};
   controller = new AbortController();
 
   product = {};
   categories = [];
 
   constructor(productId) {
-    // this.productId = productId;
-    this.productId = "22-56-sm-televizor-led-econ-ex-22ft005b-cernyj";
+    this.productId = productId;
+    // this.productId = "22-56-sm-televizor-led-econ-ex-22ft005b-cernyj";
   }
 
   async render() {
@@ -37,27 +39,56 @@ export default class ProductForm {
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
     this.getSubElements();
-    this.initListeners();
-    console.log(this.product);
+    setTimeout(() => this.initListeners(), 0);
 
     return this.element;
   }
 
   async save() {
-    //
-    // TODO: realization of prod saving/creating
-    this.element.dispatchEvent(
-      new CustomEvent("product-updated", {
-        detail: { status: "ok" },
-        bubbles: true,
-      })
-    );
+    this.subElements.saveButton.classList.add("is-loading");
+
+    const product = this.getProductFormData();
+    try {
+      const query = new URL(this.PRODUCT_API_URL, BACKEND_URL);
+      const result = await fetchJson(query, {
+        method: this.productId ? "PATCH" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
+      });
+
+      this.dispathcEvent(result.id);
+      this.productId = result.id;
+    } catch (error) {
+      console.error(`Saving error: ${error.message}`);
+    } finally {
+      this.subElements.saveButton.classList.remove("is-loading");
+    }
+  }
+
+  getProductFormData() {
+    const product = this.product;
+
+    const numbers = ["price", "discount", "quantity", "status"];
+
+    this.formControls.forEach(({ id, value }) => {
+      product[id] = numbers.includes(id) ? Number(value) : value;
+    });
+
+    if (!this.productId) {
+      product.id = product.title.toLowerCase().replaceAll(" ", "-");
+    }
+
+    return product;
   }
 
   getSubElements() {
     for (const item of this.element.querySelectorAll("[data-element]")) {
       this.subElements[item.dataset.element] = item;
     }
+    this.formControls =
+      this.subElements.productForm.querySelectorAll(".form-control");
+
+    this.subElements["saveButton"] = this.element.querySelector("#save");
   }
 
   async loadData() {
@@ -79,8 +110,6 @@ export default class ProductForm {
       if (productArr && productArr.length > 0) {
         this.product = productArr[0];
       }
-      // console.dir(this.categories);
-      // console.dir(this.product);
     } catch (e) {
       console.error(`Error of data loading. ${e}`);
     }
@@ -164,7 +193,6 @@ export default class ProductForm {
         const image = await response.json();
 
         if (image.success) {
-          console.log(image);
           this.product.images.push({
             url: image.data.link,
             source: image.data.link.split("/").at(-1),
@@ -194,6 +222,16 @@ export default class ProductForm {
     event.preventDefault();
     this.save();
   };
+
+  dispathcEvent(detail) {
+    const eventType = this.productId ? "updated" : "saved";
+    this.element.dispatchEvent(
+      new CustomEvent(`product-${eventType}`, {
+        detail: detail,
+        bubbles: true,
+      })
+    );
+  }
   //                          /EVENTS
   // ********************************************************
 
@@ -318,14 +356,15 @@ export default class ProductForm {
       .join("");
   }
   getSubcategoryTemplate(parentName, item) {
-    return `<option value="${item.id}">${parentName} > ${item.title}</option>`;
+    const selected = item.id === this.product.subcategory ? "selected" : "";
+    return `<option value="${item.id}" ${selected}>${parentName} > ${item.title}</option>`;
   }
   getPropertiesTemplate() {
     return `<div class="form-group form-group__half_left form-group__two-col">
           <fieldset>
             <label class="form-label">Цена ($)</label>
             <input
-              value="${this.product ? this.product.price || "" : ""}"
+              value="${this.product.price || "0"}"
               required=""
               type="number"
               name="price"
@@ -337,7 +376,7 @@ export default class ProductForm {
           <fieldset>
             <label class="form-label">Скидка ($)</label>
             <input
-              value="${this.product ? this.product.discount || "" : ""}"
+              value="${this.product.discount || "0"}"
               required=""
               type="number"
               name="discount"
@@ -350,7 +389,7 @@ export default class ProductForm {
         <div class="form-group form-group__part-half">
           <label class="form-label">Количество</label>
           <input
-            value="${this.product ? this.product.quantity || "" : ""}"
+            value="${this.product.quantity || "0"}"
             required=""
             type="number"
             class="form-control"
@@ -363,10 +402,10 @@ export default class ProductForm {
           <label class="form-label">Статус</label>
           <select class="form-control" name="status" id="status" >
             <option value="1" value="${
-              this.product && this.product.status === 1 ? "selected" : ""
+              this.product.status === 1 ? "selected" : ""
             }">Активен</option>
             <option value="0" ${
-              this.product && this.product.status === 0 ? "selected" : ""
+              this.product.status === 0 ? "selected" : ""
             }>Неактивен</option>
           </select>
         </div>`;
