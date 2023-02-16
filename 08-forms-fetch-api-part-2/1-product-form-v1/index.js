@@ -5,15 +5,30 @@ const IMGUR_CLIENT_ID = "28aaa2e823b03b1";
 const BACKEND_URL = "https://course-js.javascript.ru";
 
 export default class ProductForm {
-  element = null;
-  controller = new AbortController();
-  product = null;
-  categories = null;
-  subElements = {};
   CAT_API_URL = "api/rest/categories";
   PRODUCT_API_URL = "api/rest/products";
+  DEFAULT_FORM_DATA = {
+    title: "",
+    description: "",
+    quantity: 1,
+    subcategory: "",
+    images: [],
+    status: 1,
+    price: 100,
+    discount: 0,
+  };
+
+  element = null;
+  subElements = {};
+  formControls = {};
+  controller = new AbortController();
+
+  product = {};
+  categories = [];
+
   constructor(productId) {
     this.productId = productId;
+    // this.productId = "22-56-sm-televizor-led-econ-ex-22ft005b-cernyj";
   }
 
   async render() {
@@ -24,24 +39,56 @@ export default class ProductForm {
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
     this.getSubElements();
+    setTimeout(() => this.initListeners(), 0);
 
     return this.element;
   }
 
   async save() {
-    // TODO: realization of prod saving/creating
-    this.element.dispatchEvent(
-      new CustomEvent("product-updated", {
-        detail: { status: "ok" },
-        bubbles: true,
-      })
-    );
+    this.subElements.saveButton.classList.add("is-loading");
+
+    const product = this.getProductFormData();
+    try {
+      const query = new URL(this.PRODUCT_API_URL, BACKEND_URL);
+      const result = await fetchJson(query, {
+        method: this.productId ? "PATCH" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
+      });
+
+      this.dispathcEvent(result.id);
+      this.productId = result.id;
+    } catch (error) {
+      console.error(`Saving error: ${error.message}`);
+    } finally {
+      this.subElements.saveButton.classList.remove("is-loading");
+    }
+  }
+
+  getProductFormData() {
+    const product = this.product;
+
+    const numbers = ["price", "discount", "quantity", "status"];
+
+    this.formControls.forEach(({ id, value }) => {
+      product[id] = numbers.includes(id) ? Number(value) : value;
+    });
+
+    if (!this.productId) {
+      product.id = product.title.toLowerCase().replaceAll(" ", "-");
+    }
+
+    return product;
   }
 
   getSubElements() {
     for (const item of this.element.querySelectorAll("[data-element]")) {
       this.subElements[item.dataset.element] = item;
     }
+    this.formControls =
+      this.subElements.productForm.querySelectorAll(".form-control");
+
+    this.subElements["saveButton"] = this.element.querySelector("#save");
   }
 
   async loadData() {
@@ -49,20 +96,22 @@ export default class ProductForm {
     promises.push(this.loadCategories());
     if (this.productId) {
       promises.push(this.loadProduct());
+    } else {
+      // eslint-disable-next-line new-cap
+      promises.push(Promise.resolve([this.DEFAULT_FORM_DATA]));
     }
 
     try {
-      const data = await Promise.all(promises);
-      if (data[0] && data[0].length > 0) {
-        this.categories = data[0];
+      const [categories, productArr] = await Promise.all(promises);
+
+      if (categories && categories.length > 0) {
+        this.categories = categories;
       }
-      if (data[1] && data[1][0]) {
-        this.product = data[1][0];
+      if (productArr && productArr.length > 0) {
+        this.product = productArr[0];
       }
-      // console.dir(this.categories);
-      // console.dir(this.product);
     } catch (e) {
-      console.error("Error of data loading. " + e);
+      console.error(`Error of data loading. ${e}`);
     }
   }
 
@@ -82,13 +131,118 @@ export default class ProductForm {
     }
   }
 
-  //  TEMPLATES
+  // ********************************************************
+  //                          EVENTS
+  initListeners() {
+    this.subElements.productForm.uploadImage.addEventListener(
+      "click",
+      this.uploadImageBtnClick,
+      {
+        signal: this.controller.signal,
+      }
+    );
+
+    this.subElements.productForm.addEventListener(
+      "submit",
+      this.saveFormSubmit,
+      {
+        signal: this.controller.signal,
+      }
+    );
+    this.subElements.imageListContainer.addEventListener(
+      "pointerdown",
+      this.imageListContainerClick,
+      {
+        signal: this.controller.signal,
+      }
+    );
+  }
+
+  imageListContainerClick = (e) => {
+    e.preventDefault();
+    const { target } = e;
+
+    if (target.dataset.deleteHandle) {
+      this.product.images = this.product.images.filter(
+        (image) => image.source !== target.dataset.deleteHandle
+      );
+      this.subElements.imageListContainer.innerHTML = this.renderImages();
+    }
+  };
+
+  uploadImage = async (e) => {
+    const formData = new FormData();
+    const { target } = e;
+    const [file] = target.files;
+
+    if (file) {
+      this.subElements.productForm.uploadImage.disabled = true;
+      this.subElements.productForm.uploadImage.classList.add("is-loading");
+      formData.append("image", file);
+
+      try {
+        const response = await fetch("https://api.imgur.com/3/image", {
+          method: "POST",
+          headers: {
+            Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
+          },
+          body: formData,
+          referrer: "",
+        });
+
+        const image = await response.json();
+
+        if (image.success) {
+          this.product.images.push({
+            url: image.data.link,
+            source: image.data.link.split("/").at(-1),
+          });
+          this.subElements.imageListContainer.innerHTML = this.renderImages();
+        }
+      } catch (e) {
+        console.error(`uploadImage fetch error: ${e}`);
+      } finally {
+        this.subElements.productForm.uploadImage.classList.remove("is-loading");
+        this.subElements.productForm.uploadImage.disabled = false;
+      }
+    }
+  };
+
+  uploadImageBtnClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.hidden = true;
+    document.body.append(input);
+    input.addEventListener("change", this.uploadImage, { bubbles: false });
+    input.click();
+    input.remove();
+  };
+
+  saveFormSubmit = (event) => {
+    event.preventDefault();
+    this.save();
+  };
+
+  dispathcEvent(detail) {
+    const eventType = this.productId ? "updated" : "saved";
+    this.element.dispatchEvent(
+      new CustomEvent(`product-${eventType}`, {
+        detail: detail,
+        bubbles: true,
+      })
+    );
+  }
+  //                          /EVENTS
+  // ********************************************************
+
+  // ********************************************************
+  //                          TEMPLATES
   getTemplate() {
     return `<div class="product-form">
         <form data-element="productForm" class="form-grid">
         ${this.getTitleTemplate()}
         ${this.getDescriptionTemplate()}
-        ${this.getPhotosTemplate()}
+        ${this.getImagesTemplate()}
         ${this.getCategoriesTemplate()}
         ${this.getPropertiesTemplate()}
         ${this.getButtonsTemplate()}
@@ -125,29 +279,32 @@ export default class ProductForm {
         >${this.product ? escapeHtml(this.product.description) : ""}</textarea>
       </div>`;
   }
-  getPhotosTemplate() {
+  getImagesTemplate() {
     return `<div
         class="form-group form-group__wide"
         data-element="sortable-list-container"
       >
         <label class="form-label">Фото</label>
         <div data-element="imageListContainer">
-          <ul class="sortable-list">
-            ${
-              this.product
-                ? this.product.images
-                    .map((photo) => {
-                      return this.getPhotoTemplate(photo);
-                    })
-                    .join("")
-                : ""
-            }
-          </ul>
+          ${this.renderImages()}
         </div>
-        <button type="button" name="uploadImage" class="button-primary-outline">
+        <button type="button" name="uploadImage" id="uploadImage" class="button-primary-outline">
           <span>Загрузить</span>
         </button>
       </div>`;
+  }
+  renderImages() {
+    return `<ul class="sortable-list">
+    ${
+      this.product?.images
+        ? this.product.images
+            .map((photo) => {
+              return this.getPhotoTemplate(photo);
+            })
+            .join("")
+        : ""
+    }
+    </ul>`;
   }
   getPhotoTemplate(photo) {
     return `<li class="products-edit__imagelist-item sortable-list__item" style="">
@@ -162,7 +319,9 @@ export default class ProductForm {
           value="${photo.source || ""}"
         />
         <span>
-          <img src="icon-grab.svg" data-grab-handle="" alt="grab" />
+          <img src="icon-grab.svg" data-grab-handle="${
+            photo.source || ""
+          }" alt="grab" />
           <img
             class="sortable-table__cell-img"
             alt="Image"
@@ -171,7 +330,9 @@ export default class ProductForm {
           <span>${photo.source || ""}</span>
         </span>
         <button type="button">
-          <img src="icon-trash.svg" data-delete-handle="" alt="delete" />
+          <img src="icon-trash.svg" data-delete-handle="${
+            photo.source || ""
+          }" alt="delete" />
         </button>
       </li>`;
   }
@@ -195,14 +356,15 @@ export default class ProductForm {
       .join("");
   }
   getSubcategoryTemplate(parentName, item) {
-    return `<option value="${item.id}">${parentName} > ${item.title}</option>`;
+    const selected = item.id === this.product.subcategory ? "selected" : "";
+    return `<option value="${item.id}" ${selected}>${parentName} > ${item.title}</option>`;
   }
   getPropertiesTemplate() {
     return `<div class="form-group form-group__half_left form-group__two-col">
           <fieldset>
             <label class="form-label">Цена ($)</label>
             <input
-              value="${this.product ? this.product.price || "" : ""}"
+              value="${this.product.price || "0"}"
               required=""
               type="number"
               name="price"
@@ -214,7 +376,7 @@ export default class ProductForm {
           <fieldset>
             <label class="form-label">Скидка ($)</label>
             <input
-              value="${this.product ? this.product.discount || "" : ""}"
+              value="${this.product.discount || "0"}"
               required=""
               type="number"
               name="discount"
@@ -227,7 +389,7 @@ export default class ProductForm {
         <div class="form-group form-group__part-half">
           <label class="form-label">Количество</label>
           <input
-            value="${this.product ? this.product.quantity || "" : ""}"
+            value="${this.product.quantity || "0"}"
             required=""
             type="number"
             class="form-control"
@@ -240,22 +402,23 @@ export default class ProductForm {
           <label class="form-label">Статус</label>
           <select class="form-control" name="status" id="status" >
             <option value="1" value="${
-              this.product && this.product.status === 1 ? "selected" : ""
+              this.product.status === 1 ? "selected" : ""
             }">Активен</option>
             <option value="0" ${
-              this.product && this.product.status === 0 ? "selected" : ""
+              this.product.status === 0 ? "selected" : ""
             }>Неактивен</option>
           </select>
         </div>`;
   }
   getButtonsTemplate() {
     return `<div class="form-buttons">
-    <button type="submit" name="save" class="button-primary-outline">
-      Сохранить товар
+    <button type="submit" name="save" id="save" class="button-primary-outline">
+      ${this.productId ? "Сохранить" : "Добавить"} товар
     </button>
   </div>`;
   }
-  //  /TEMPLATES
+  //                        /TEMPLATES
+  // ********************************************************
 
   remove() {
     // eslint-disable-next-line curly
