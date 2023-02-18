@@ -1,4 +1,4 @@
-import SortableList from "../../2-sortable-list/index.js";
+import SortableList from "../2-sortable-list/index.js";
 import escapeHtml from "./utils/escape-html.js";
 import fetchJson from "./utils/fetch-json.js";
 
@@ -140,7 +140,6 @@ export default class ProductForm {
   // ********************************************************
   //                          EVENTS
   initListeners() {
-    console.dir(this.subElements.productForm);
     this.subElements.uploadImage.addEventListener(
       "click",
       this.uploadImageBtnClick,
@@ -156,7 +155,20 @@ export default class ProductForm {
         signal: this.controller.signal,
       }
     );
+
+    document.addEventListener("sorting-list-toggle-items", this.updateImages, {
+      signal: this.controller.signal,
+    });
   }
+
+  updateImages = ({ detail }) => {
+    if (detail) {
+      this.product.images = detail.map((item) => {
+        const [url, source] = item.querySelectorAll('[type="hidden"]');
+        return { url: url.value, source: source.value };
+      });
+    }
+  };
 
   uploadImage = async ({ target }) => {
     const formData = new FormData();
@@ -184,7 +196,7 @@ export default class ProductForm {
             url: image.data.link,
             source: image.data.link.split("/").at(-1),
           });
-          this.subElements.imageListContainer.innerHTML = this.renderImages();
+          this.renderImages();
         }
       } catch (e) {
         console.error(`uploadImage fetch error: ${e}`);
@@ -241,7 +253,7 @@ export default class ProductForm {
         <fieldset>
           <label class="form-label">Название товара</label>
           <input
-            value="${this.product ? escapeHtml(this.product.title) : ""}"
+            value="${this.product.title ? escapeHtml(this.product.title) : ""}"
             required=""
             type="text"
             name="title"
@@ -280,45 +292,49 @@ export default class ProductForm {
       </div>`;
   }
   renderImages() {
-    const items = this.product?.images
+    const items = Object.hasOwn(this.product, "images")
       ? this.product.images.map((photo) => {
           return this.getPhotoTemplate(photo);
         })
       : [];
 
-    if (Object.hasOwn(this.sortableImageList, "element")) {
+    if (Object.hasOwn(this.sortableImageList, "destroy")) {
       this.sortableImageList.destroy();
     }
 
     this.sortableImageList = new SortableList({ items });
+    this.subElements.imageListContainer.innerHTML = "";
     this.subElements.imageListContainer.append(this.sortableImageList.element);
   }
 
   getPhotoTemplate(photo) {
-    return `<li class="products-edit__imagelist-item" style="">
+    const result = document.createElement("li");
+    result.classList.add("products-edit__imagelist-item");
+    result.innerHTML = `
         <input
           type="hidden"
           name="url"
-          value="${photo.url || ""}"
+          value="${escapeHtml(photo.url) || ""}"
         />
         <input
           type="hidden"
           name="source"
-          value="${photo.source || ""}"
+          value="${escapeHtml(photo.source) || ""}"
         />
         <span>
           <img src="icon-grab.svg" data-grab-handle alt="grab" />
           <img
             class="sortable-table__cell-img"
             alt="Image"
-            src="${photo.url || ""}"
+            src="${escapeHtml(photo.url) || ""}"
           />
           <span>${photo.source || ""}</span>
         </span>
         <button type="button">
           <img src="icon-trash.svg" data-delete-handle alt="delete" />
         </button>
-      </li>`;
+      `;
+    return result;
   }
   getCategoriesTemplate() {
     return `<div class="form-group form-group__half_left">
@@ -411,6 +427,10 @@ export default class ProductForm {
   destroy() {
     this.remove();
     this.element = null;
+    if (Object.hasOwn(this.sortableImageList, "destroy")) {
+      this.sortableImageList.destroy();
+    }
+    this.sortableImageList = null;
     this.controller.abort();
   }
 }

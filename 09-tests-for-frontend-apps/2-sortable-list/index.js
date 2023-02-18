@@ -41,6 +41,7 @@ export default class SortableList {
   }
 
   pointerDownHandler = (event) => {
+    event.preventDefault();
     const { target } = event;
 
     if (Object.hasOwn(target.dataset, "grabHandle")) {
@@ -67,6 +68,16 @@ export default class SortableList {
   deleteItem(item) {
     this.items = this.items.filter((element) => element !== item);
     item.remove();
+    this.dispatchToggleItems(this.items);
+  }
+
+  dispatchToggleItems(items) {
+    this.element.dispatchEvent(
+      new CustomEvent("sorting-list-toggle-items", {
+        detail: items,
+        bubbles: true,
+      })
+    );
   }
 
   pointerMoveHandler = (event) => {
@@ -109,6 +120,8 @@ export default class SortableList {
 
   pointerUpHandler = () => {
     this.stopDragging(this.dragging);
+    this.dispatchToggleItems(this.items);
+
     document.removeEventListener("pointerup", this.pointerUpHandler, {
       signal: this.controller.signal,
     });
