@@ -22,6 +22,7 @@ export default class SortableTable {
     headerConfig = [],
     {
       url = "",
+      range = { to: new Date(), from: new Date() },
       isSortLocally = !Boolean(url),
       data = [],
       sorted = {
@@ -35,6 +36,7 @@ export default class SortableTable {
     this.sorted = sorted;
     this.isSortLocally = isSortLocally;
     this.url = url;
+    this.range = range;
 
     this.render();
   }
@@ -46,11 +48,8 @@ export default class SortableTable {
 
     this.getSubElements();
     this.addEvents();
-    if (this.isSortLocally) {
-      this.updateData();
-    } else {
-      await this.loadData();
-    }
+
+    await this.loadData();
   }
 
   getSubElements() {
@@ -114,7 +113,7 @@ export default class SortableTable {
     }
   }
 
-  async loadData() {
+  async loadData(range = this.range) {
     this.showLoading();
 
     const query = new URL(this.url, BACKEND_URL);
@@ -123,6 +122,12 @@ export default class SortableTable {
     query.searchParams.set("_embed", "subcategory.category");
     query.searchParams.set("_start", this.data.length);
     query.searchParams.set("_end", Number(this.data.length + this.LOAD_COUNT));
+    if (range.from) {
+      query.searchParams.set("from", range.from.toISOString());
+    }
+    if (range.to) {
+      query.searchParams.set("to", range.to.toISOString());
+    }
 
     let data = [];
     try {

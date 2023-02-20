@@ -28,7 +28,6 @@ export default class ProductForm {
 
   constructor(productId) {
     this.productId = productId;
-    // this.productId = "22-56-sm-televizor-led-econ-ex-22ft005b-cernyj";
   }
 
   async render() {
@@ -39,7 +38,7 @@ export default class ProductForm {
     wrap.innerHTML = this.getTemplate();
     this.element = wrap.firstElementChild;
     this.getSubElements();
-    setTimeout(() => this.initListeners(), 0);
+    this.initListeners();
 
     return this.element;
   }
@@ -89,6 +88,8 @@ export default class ProductForm {
       this.subElements.productForm.querySelectorAll(".form-control");
 
     this.subElements["saveButton"] = this.element.querySelector("#save");
+    this.subElements["uploadImage"] =
+      this.element.querySelector("#uploadImage");
   }
 
   async loadData() {
@@ -134,7 +135,8 @@ export default class ProductForm {
   // ********************************************************
   //                          EVENTS
   initListeners() {
-    this.subElements.productForm.uploadImage.addEventListener(
+    console.dir(this.subElements.productForm);
+    this.subElements.uploadImage.addEventListener(
       "click",
       this.uploadImageBtnClick,
       {
@@ -158,8 +160,8 @@ export default class ProductForm {
     );
   }
 
-  imageListContainerClick = (e) => {
-    e.preventDefault();
+  imageListContainerClick = (event) => {
+    event.preventDefault();
     const { target } = e;
 
     if (target.dataset.deleteHandle) {
@@ -170,14 +172,13 @@ export default class ProductForm {
     }
   };
 
-  uploadImage = async (e) => {
+  uploadImage = async ({ target }) => {
     const formData = new FormData();
-    const { target } = e;
     const [file] = target.files;
 
     if (file) {
-      this.subElements.productForm.uploadImage.disabled = true;
-      this.subElements.productForm.uploadImage.classList.add("is-loading");
+      this.subElements.uploadImage.disabled = true;
+      this.subElements.uploadImage.classList.add("is-loading");
       formData.append("image", file);
 
       try {
@@ -202,8 +203,8 @@ export default class ProductForm {
       } catch (e) {
         console.error(`uploadImage fetch error: ${e}`);
       } finally {
-        this.subElements.productForm.uploadImage.classList.remove("is-loading");
-        this.subElements.productForm.uploadImage.disabled = false;
+        this.subElements.uploadImage.classList.remove("is-loading");
+        this.subElements.uploadImage.disabled = false;
       }
     }
   };
