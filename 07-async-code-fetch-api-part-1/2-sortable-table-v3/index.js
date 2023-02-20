@@ -48,11 +48,8 @@ export default class SortableTable {
 
     this.getSubElements();
     this.addEvents();
-    if (this.isSortLocally) {
-      this.updateData();
-    } else {
-      await this.loadData();
-    }
+
+    await this.loadData();
   }
 
   getSubElements() {

@@ -61,6 +61,7 @@ export default class Page {
 
     this.sortableTable = new SortableTable(header, {
       url: "api/dashboard/bestsellers",
+      isSortLocally: true,
       range: this.range,
     });
     this.subElements["sortableTable"].append(this.sortableTable.element);
@@ -78,13 +79,12 @@ export default class Page {
     });
   }
 
-  rangeChanged = ({ detail }) => {
+  rangeChanged = async ({ detail }) => {
     this.range = detail;
-    console.dir(detail);
     this.columnCharts.forEach(({ instance }) => {
       instance.update(this.range.from, this.range.to);
     });
-    this.sortableTable.loadData(this.range);
+    await this.sortableTable.loadData(this.range);
   };
 
   getSubElements() {
