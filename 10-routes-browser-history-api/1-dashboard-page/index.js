@@ -3,18 +3,11 @@ import SortableTable from "../../07-async-code-fetch-api-part-1/2-sortable-table
 import ColumnChart from "../../07-async-code-fetch-api-part-1/1-column-chart/index.js";
 import header from "./bestsellers-header.js";
 
-import fetchJson from "./utils/fetch-json.js";
-
-const BACKEND_URL = "https://course-js.javascript.ru/";
-
 export default class Page {
   element = {};
   subElements = {};
-  rangePicker = {};
-  sortableTable = {};
   range = {};
-
-  columnCharts = [];
+  components = {};
   controller = new AbortController();
 
   constructor() {
@@ -51,26 +44,31 @@ export default class Page {
     this.element = wrap.firstElementChild;
     this.getSubElements();
     this.initComponents();
+    this.appendComponents();
     this.initListeners();
 
     return this.element;
   }
   initComponents() {
-    this.rangePicker = new RangePicker(this.range);
-    this.subElements["rangePicker"].append(this.rangePicker.element);
+    this.components["rangePicker"] = new RangePicker(this.range);
 
-    this.sortableTable = new SortableTable(header, {
+    this.components["sortableTable"] = new SortableTable(header, {
       url: "api/dashboard/bestsellers",
       isSortLocally: true,
       range: this.range,
     });
-    this.subElements["sortableTable"].append(this.sortableTable.element);
 
     this.charts.forEach((item) => {
-      const chart = new ColumnChart(item);
-      this.columnCharts.push({ instance: chart, name: item.name });
-      this.subElements[item.name].append(chart.element);
+      this.components[item.name] = new ColumnChart(item);
     });
+  }
+
+  appendComponents() {
+    for (const [name, instance] of Object.entries(this.components)) {
+      if (Object.hasOwn(this.subElements, name)) {
+        this.subElements[name].append(instance.element);
+      }
+    }
   }
 
   initListeners() {
@@ -81,10 +79,14 @@ export default class Page {
 
   rangeChanged = async ({ detail }) => {
     this.range = detail;
-    this.columnCharts.forEach(({ instance }) => {
-      instance.update(this.range.from, this.range.to);
-    });
-    await this.sortableTable.loadData(this.range);
+    for (const instance of Object.values(this.components)) {
+      if (instance instanceof ColumnChart) {
+        instance.update(this.range.from, this.range.to);
+      }
+      if (instance instanceof SortableTable) {
+        instance.loadData(this.range);
+      }
+    }
   };
 
   getSubElements() {
@@ -122,21 +124,11 @@ export default class Page {
     this.charts = null;
     this.controller.abort();
 
-    if (Object.hasOwn(this.rangePicker, "destroy")) {
-      this.rangePicker.destroy();
-    }
-    this.rangePicker = null;
-
-    if (Object.hasOwn(this.sortableTable, "destroy")) {
-      this.sortableTable.destroy();
-    }
-    this.sortableTable = null;
-
-    this.columnCharts.forEach(({ instance }) => {
+    for (const instance of Object.values(this.components)) {
       if (Object.hasOwn(instance, "destroy")) {
         instance.destroy();
       }
-    });
-    this.columnCharts = null;
+    }
+    this.components = null;
   }
 }
